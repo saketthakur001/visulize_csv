@@ -121,10 +121,8 @@ st.markdown(
             background: var(--side-bg-raised); border: 1px solid var(--side-border); color: var(--side-text);
         }
         section[data-testid="stSidebar"] .stButton > button:hover { border-color: var(--side-muted); background: #24382F; }
-        section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
-            background: var(--side-bg-raised) !important; border-color: var(--side-border) !important; color: var(--side-text) !important;
-        }
-        section[data-testid="stSidebar"] div[data-baseweb="select"] svg { fill: var(--side-muted) !important; }
+        /* Selectbox/slider internals are theme-driven (see [theme.sidebar] in config.toml),
+           not reachable by page-level CSS — no override needed here. */
 
         h3 {
             font-family: 'JetBrains Mono', monospace !important;
