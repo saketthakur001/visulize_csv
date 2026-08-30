@@ -79,6 +79,22 @@ Caveats worth knowing:
 - Logout clears `localStorage['or_api_key']` explicitly — otherwise the
   restore block would just log the user back in on the very next rerun.
 
+### Gotcha: `st.stop()` while waiting on `st_javascript` blanked the whole app
+
+The restore-login check ran on **every** page load (not just post-OAuth), and
+used `if saved_key == 0: st.stop()` to wait for the JS round-trip. `st.stop()`
+halts the script immediately at that line — nothing below it renders, not
+even the sidebar. If the round-trip ever stalled (slow component mount,
+browser hiccup, etc.), the user was stuck on a page with just the header and
+nothing else, no error, no sidebar, indefinitely.
+
+**Fix:** never `st.stop()` on a check that runs on every page load. Treat
+`saved_key == 0` as "not restored yet, continue rendering normally" instead
+of "block everything." The OAuth code-exchange path still legitimately needs
+to wait (it can't render meaningful content without the verifier), but it's
+now capped at 20 reruns before showing a clear error instead of hanging
+forever.
+
 ## Free models churn — don't hardcode IDs
 
 `google/gemini-2.0-flash-exp:free` was in the model picker and worked at
