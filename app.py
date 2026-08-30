@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import io
+import json
 import re
 import secrets
 import contextlib
@@ -26,16 +27,24 @@ st.markdown(
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #FAFAFA;
+            --bg: #F1EFF9;
             --surface: #FFFFFF;
-            --border: #E4E4E7;
-            --text: #18181B;
-            --text-muted: #71717A;
-            --text-faint: #A1A1AA;
-            --accent: #4338CA;
-            --accent-hover: #3730A3;
-            --success-bg: #F0FDF4; --success-text: #15803D;
-            --error-bg: #FEF2F2; --error-text: #B91C1C;
+            --border: #E1DEF2;
+            --text: #1C1A2E;
+            --text-muted: #635F7A;
+            --text-faint: #9691AD;
+            --accent: #4F46E5;
+            --accent-hover: #4338CA;
+            --accent-soft: #EDEBFC;
+            --accent-soft-border: #D6D2F7;
+            --success-bg: #E7F8EE; --success-text: #157347;
+            --error-bg: #FDECEC; --error-text: #B42318;
+
+            --side-bg: #17152B;
+            --side-bg-raised: #1F1D38;
+            --side-border: #2E2B4C;
+            --side-text: #E7E5F5;
+            --side-muted: #8D89AC;
         }
 
         html, body, [class*="css"] {
@@ -47,25 +56,28 @@ st.markdown(
         .block-container { padding-top: 2.5rem; padding-bottom: 3rem; max-width: 980px; }
 
         /* Header */
-        .app-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.15rem; }
+        .app-header { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.15rem; }
         .app-mark {
-            width: 26px; height: 26px; border-radius: 7px; background: var(--text);
+            width: 28px; height: 28px; border-radius: 8px;
+            background: linear-gradient(135deg, #6D28D9 0%, #4338CA 100%);
             display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+            box-shadow: 0 2px 6px rgba(67, 56, 202, 0.35);
         }
         .app-mark svg { width: 14px; height: 14px; }
         .app-title { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
-        .app-subtitle { color: var(--text-muted); font-size: 0.875rem; margin: 0.3rem 0 1.75rem 34px; }
+        .app-subtitle { color: var(--text-muted); font-size: 0.875rem; margin: 0.3rem 0 1.75rem 36px; }
 
         /* Eyebrow / step labels */
         .eyebrow {
-            display: flex; align-items: center; gap: 0.5rem;
+            display: flex; align-items: center; gap: 0.55rem;
             font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-            color: var(--text-faint); margin-bottom: 0.85rem;
+            color: var(--text-muted); margin-bottom: 0.85rem;
         }
         .eyebrow .step-num {
-            width: 18px; height: 18px; border-radius: 5px; background: var(--bg); border: 1px solid var(--border);
+            width: 18px; height: 18px; border-radius: 5px;
+            background: var(--accent-soft); border: 1px solid var(--accent-soft-border);
             display: inline-flex; align-items: center; justify-content: center;
-            font-size: 0.65rem; font-weight: 600; color: var(--text-muted); text-transform: none; letter-spacing: 0;
+            font-size: 0.65rem; font-weight: 700; color: var(--accent); text-transform: none; letter-spacing: 0;
         }
 
         /* Card-style containers — flat, bordered, no shadow */
@@ -73,15 +85,27 @@ st.markdown(
             background: var(--surface);
             border: 1px solid var(--border) !important;
             border-radius: 10px !important;
-            box-shadow: none !important;
+            box-shadow: 0 1px 2px rgba(28, 26, 46, 0.04) !important;
         }
         div[data-testid="stVerticalBlockBorderWrapper"] > div { padding: 1.1rem 1.2rem; }
 
+        /* Sidebar — dark, so the app reads as a real product shell, not a form */
         section[data-testid="stSidebar"] {
-            background: var(--surface);
-            border-right: 1px solid var(--border);
+            background: var(--side-bg);
+            border-right: 1px solid var(--side-border);
         }
-        section[data-testid="stSidebar"] .stMarkdown p { font-size: 0.875rem; }
+        section[data-testid="stSidebar"] * { color: var(--side-text); }
+        section[data-testid="stSidebar"] .eyebrow { color: var(--side-muted); }
+        section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p { color: var(--side-muted) !important; font-size: 0.8rem; }
+        section[data-testid="stSidebar"] hr { border-top: 1px solid var(--side-border); }
+        section[data-testid="stSidebar"] .stButton > button {
+            background: var(--side-bg-raised); border: 1px solid var(--side-border); color: var(--side-text);
+        }
+        section[data-testid="stSidebar"] .stButton > button:hover { border-color: var(--side-muted); background: #262445; }
+        section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
+            background: var(--side-bg-raised) !important; border-color: var(--side-border) !important; color: var(--side-text) !important;
+        }
+        section[data-testid="stSidebar"] div[data-baseweb="select"] svg { fill: var(--side-muted) !important; }
 
         h3 { font-size: 0.95rem !important; font-weight: 600 !important; color: var(--text) !important; letter-spacing: -0.01em; }
 
@@ -94,14 +118,14 @@ st.markdown(
             color: var(--text);
             transition: none;
         }
-        .stButton > button:hover { border-color: var(--text-faint); background: var(--bg); }
+        .stButton > button:hover { border-color: var(--text-faint); background: var(--accent-soft); }
         .stButton > button[kind="primary"] {
-            background-color: var(--accent);
-            border: 1px solid var(--accent);
+            background: linear-gradient(135deg, #6366F1 0%, #4338CA 100%);
+            border: 1px solid var(--accent-hover);
             color: #FFFFFF;
         }
-        .stButton > button[kind="primary"]:hover { background-color: var(--accent-hover); border-color: var(--accent-hover); }
-        .stButton > button[kind="primary"]:disabled { background-color: #E4E4E7; border-color: #E4E4E7; color: var(--text-faint); }
+        .stButton > button[kind="primary"]:hover { filter: brightness(1.06); }
+        .stButton > button[kind="primary"]:disabled { background: #E1DEF2; border-color: #E1DEF2; color: var(--text-faint); filter: none; }
 
         /* Status pill */
         .status-pill {
@@ -109,11 +133,11 @@ st.markdown(
             padding: 0.25rem 0.6rem; border-radius: 6px;
             font-weight: 500; font-size: 0.8rem;
         }
-        .status-pill.connected { background: var(--success-bg); color: var(--success-text); }
-        .status-pill.disconnected { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
+        .status-pill.connected { background: rgba(74, 222, 128, 0.14); color: #4ADE80; }
+        .status-pill.disconnected { background: var(--side-bg-raised); color: var(--side-muted); border: 1px solid var(--side-border); }
         .status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
-        .status-dot.connected { background: #16A34A; }
-        .status-dot.disconnected { background: var(--text-faint); }
+        .status-dot.connected { background: #4ADE80; }
+        .status-dot.disconnected { background: var(--side-muted); }
 
         /* Inputs */
         .stTextInput > div > div > input, .stSelectbox > div > div {
@@ -166,7 +190,7 @@ def style_chart(fig, ax):
     return fig, ax
 
 
-ACCENT_COLORS = ["#4338CA", "#A1A1AA", "#0891B2", "#B45309", "#B91C1C", "#6D28D9"]
+ACCENT_COLORS = ["#4F46E5", "#0D9488", "#D97706", "#E11D48", "#7C3AED", "#0891B2"]
 plt.rcParams["axes.prop_cycle"] = plt.cycler(color=ACCENT_COLORS)
 plt.rcParams["font.family"] = "sans-serif"
 
@@ -244,6 +268,22 @@ params = st.query_params
 if "api_key" not in st.session_state:
     st.session_state.api_key = None
 
+# Restore a previously saved login from localStorage, so the user doesn't have to go
+# through the OpenRouter OAuth dance again on every page reload / new session. Only
+# attempted once per session, and skipped mid-OAuth-redirect (there's nothing to
+# restore yet in that case, and it would double up with the exchange logic below).
+if "tried_restore" not in st.session_state:
+    st.session_state.tried_restore = False
+
+if not st.session_state.api_key and not st.session_state.tried_restore and "code" not in params:
+    saved_key = st_javascript("localStorage.getItem('or_api_key')", key="restore_key")
+    if saved_key == 0:
+        st.stop()  # st_javascript sentinel while it waits for the browser round-trip
+    st.session_state.tried_restore = True
+    if saved_key:
+        st.session_state.api_key = saved_key
+        log("Restored saved login from this browser", "success")
+
 # The redirect to openrouter.ai and back is a full cross-origin page load, which kills
 # the WebSocket and starts a brand-new Streamlit session — session_state from before the
 # redirect is gone. OpenRouter also strips any query string we add to callback_url and
@@ -265,6 +305,12 @@ if not st.session_state.api_key and "code" in params:
         try:
             st.session_state.api_key = exchange_code_for_key(params["code"], verifier)
             log("Key exchange succeeded", "success")
+            # Save the key so a future page load/reload can skip the OAuth dance
+            # entirely — see the restore block above.
+            components.html(
+                f"<script>window.localStorage.setItem('or_api_key', {json.dumps(st.session_state.api_key)});</script>",
+                height=0,
+            )
         except Exception as e:
             st.error(f"Login failed: {e}")
             log(f"Key exchange failed: {e}", "error")
@@ -294,7 +340,12 @@ with st.sidebar:
             log("Connection check to OpenRouter /auth/key failed", "error")
         if st.button("Log out"):
             st.session_state.api_key = None
+            st.session_state.tried_restore = True
             check_connection.clear()
+            components.html(
+                "<script>window.localStorage.removeItem('or_api_key');</script>",
+                height=0,
+            )
             st.rerun()
     else:
         st.markdown(
@@ -307,7 +358,7 @@ with st.sidebar:
         # is re-run (and re-saved) on every rerun while logged out, which is fine — only
         # the value present at the moment the link is clicked matters.
         components.html(
-            f"<script>window.localStorage.setItem('or_pkce_verifier', '{verifier}');</script>",
+            f"<script>window.localStorage.setItem('or_pkce_verifier', {json.dumps(verifier)});</script>",
             height=0,
         )
         auth_url = (
@@ -321,7 +372,8 @@ with st.sidebar:
         st.markdown(
             f'''<a href="{auth_url}" target="_self" style="
                 display:block; text-align:center; padding:0.5rem 1rem; margin-top:0.6rem;
-                background-color:#4338CA; color:white; border-radius:7px; font-size:0.875rem;
+                background:linear-gradient(135deg, #6366F1 0%, #4338CA 100%); color:white;
+                border-radius:7px; font-size:0.875rem;
                 text-decoration:none; font-weight:500;">Continue with OpenRouter</a>''',
             unsafe_allow_html=True,
         )
