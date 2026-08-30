@@ -380,10 +380,15 @@ with st.sidebar:
             f"&code_challenge={challenge}"
             "&code_challenge_method=S256"
         )
-        # Must navigate in the SAME tab (target="_self") so the localStorage write above
-        # (tied to this tab/origin) is what the redirect-back page reads.
+        # Navigate the TOP-LEVEL browsing context (target="_top", not "_self") so the
+        # localStorage write above (tied to this tab/origin) is what the redirect-back
+        # page reads, AND so the click breaks out of any iframe the app is being viewed
+        # in. openrouter.ai/auth sends X-Frame-Options/CSP that refuses to render inside
+        # a frame — with target="_self" a framed deployment would navigate the iframe
+        # itself into that URL and get blocked, which Chrome surfaces as a generic
+        # "refused to connect" with no network request our server ever sees.
         st.markdown(
-            f'''<a href="{auth_url}" target="_self" style="
+            f'''<a href="{auth_url}" target="_top" style="
                 display:block; text-align:center; padding:0.5rem 1rem; margin-top:0.6rem;
                 background:linear-gradient(135deg, #6366F1 0%, #4338CA 100%); color:white;
                 border-radius:7px; font-size:0.875rem;
