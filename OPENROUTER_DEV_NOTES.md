@@ -62,6 +62,22 @@ tried and confirmed broken through actual testing, not guesswork.
   redirect-back page shares origin/storage context cleanly with the page
   that saved the verifier.
 
+## Free models churn — don't hardcode IDs
+
+`google/gemini-2.0-flash-exp:free` was in the model picker and worked at
+first, then started failing with `404 No endpoints found for
+google/gemini-2.0-flash-exp:free`. OpenRouter's free-tier lineup gets
+renamed/retired regularly — any hardcoded `:free` model ID will eventually
+go stale.
+
+**Fix:** `get_free_models()` fetches `GET https://openrouter.ai/api/v1/models`
+live, filters to IDs ending in `:free`, and caches the result for 1 hour
+(`st.cache_data(ttl=3600)`). `FALLBACK_FREE_MODELS` is only used if that
+request itself fails (network error, API shape change) — it is not meant to
+be kept in sync with reality by hand. If the model list ever looks stale
+again, the fix is almost certainly not "update the fallback list" but
+"check why the live fetch is failing."
+
 ## Current known-good implementation
 
 See `app.py`:
