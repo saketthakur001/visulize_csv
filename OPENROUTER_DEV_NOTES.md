@@ -62,6 +62,23 @@ tried and confirmed broken through actual testing, not guesswork.
   redirect-back page shares origin/storage context cleanly with the page
   that saved the verifier.
 
+## Persisting the login across sessions
+
+Every page reload was forcing the user through the full OAuth flow again,
+since `session_state` is per-session and doesn't survive a reload. Fixed the
+same way as the PKCE verifier: save the API key to `localStorage['or_api_key']`
+right after a successful exchange, and on every fresh session (before showing
+the login button), try reading it back with `st_javascript` first.
+
+Caveats worth knowing:
+- It's per-browser, per-device. A different browser or a cleared-site-data
+  event means logging in again — there's no server-side account of who's
+  "logged in."
+- `st.session_state.tried_restore` guards against re-attempting the restore
+  every rerun (would otherwise loop on `st_javascript`'s `0` sentinel).
+- Logout clears `localStorage['or_api_key']` explicitly — otherwise the
+  restore block would just log the user back in on the very next rerun.
+
 ## Free models churn — don't hardcode IDs
 
 `google/gemini-2.0-flash-exp:free` was in the model picker and worked at
