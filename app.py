@@ -380,15 +380,17 @@ with st.sidebar:
             f"&code_challenge={challenge}"
             "&code_challenge_method=S256"
         )
-        # Navigate the TOP-LEVEL browsing context (target="_top", not "_self") so the
-        # localStorage write above (tied to this tab/origin) is what the redirect-back
-        # page reads, AND so the click breaks out of any iframe the app is being viewed
-        # in. openrouter.ai/auth sends X-Frame-Options/CSP that refuses to render inside
-        # a frame — with target="_self" a framed deployment would navigate the iframe
-        # itself into that URL and get blocked, which Chrome surfaces as a generic
-        # "refused to connect" with no network request our server ever sees.
+        # Streamlit Cloud itself renders this app inside a sandboxed iframe
+        # (sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox
+        # allow-same-origin allow-scripts allow-downloads" — no allow-top-navigation).
+        # target="_top"/"_self" are both silently blocked by that sandbox (Chrome logs
+        # "Unsafe attempt to initiate navigation ... sandboxed" and does nothing — no
+        # request ever leaves the browser). allow-popups-to-escape-sandbox IS granted,
+        # so target="_blank" opens an unsandboxed tab instead; it's same-origin as the
+        # iframe, so the PKCE verifier written to localStorage above is still readable
+        # after the redirect back.
         st.markdown(
-            f'''<a href="{auth_url}" target="_top" style="
+            f'''<a href="{auth_url}" target="_blank" style="
                 display:block; text-align:center; padding:0.5rem 1rem; margin-top:0.6rem;
                 background:linear-gradient(135deg, #6366F1 0%, #4338CA 100%); color:white;
                 border-radius:7px; font-size:0.875rem;
