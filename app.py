@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
+from streamlit_javascript import st_javascript
 from openai import OpenAI
 
 st.set_page_config(page_title="CSV Analyst Agent", page_icon="📊", layout="wide")
@@ -169,37 +170,29 @@ if "api_key" not in st.session_state:
 # redirect is gone. OpenRouter also strips any query string we add to callback_url and
 # only appends its own "code" param, so we can't round-trip the verifier through the URL
 # either. Instead the verifier is stashed in the browser's localStorage (which *does*
-# survive a full page reload) before the redirect, and fetched back via a tiny JS bridge
-# that appends it to the URL as "v" and reloads once more, so Python can read it normally.
+# survive a full page reload) before the redirect, and read back with st_javascript,
+# which returns the JS value straight into Python — no iframe navigation involved (that
+# approach silently failed: Streamlit's component iframe sandbox blocks a script-driven
+# top-level navigation without a real user click).
 if not st.session_state.api_key and "code" in params:
-    if "v" in params:
-        log("Received OAuth redirect with code + verifier, attempting key exchange")
-        if params["v"]:
-            try:
-                st.session_state.api_key = exchange_code_for_key(params["code"], params["v"])
-                log("Key exchange succeeded", "success")
-            except Exception as e:
-                st.error(f"Login failed: {e}")
-                log(f"Key exchange failed: {e}", "error")
-        else:
-            st.error("Couldn't recover the login verifier from this browser — please try logging in again.")
-            log("Key exchange skipped: localStorage had no verifier", "error")
-        st.query_params.clear()
-    else:
-        log("Received OAuth redirect with code, fetching verifier from localStorage")
-        components.html(
-            """
-            <script>
-            const v = window.localStorage.getItem('or_pkce_verifier') || '';
-            const url = new URL(window.parent.location.href);
-            url.searchParams.set('v', v);
-            window.parent.location.replace(url.toString());
-            </script>
-            """,
-            height=0,
-        )
+    log("Received OAuth redirect with code, fetching verifier from localStorage")
+    verifier = st_javascript("localStorage.getItem('or_pkce_verifier')", key="fetch_verifier")
+    if verifier == 0:
+        # st_javascript's sentinel while it waits for the browser round-trip; the
+        # component will trigger a rerun once the real value comes back.
         st.info("Finishing login...")
         st.stop()
+    elif verifier:
+        try:
+            st.session_state.api_key = exchange_code_for_key(params["code"], verifier)
+            log("Key exchange succeeded", "success")
+        except Exception as e:
+            st.error(f"Login failed: {e}")
+            log(f"Key exchange failed: {e}", "error")
+    else:
+        st.error("Couldn't recover the login verifier from this browser — please try logging in again.")
+        log("Key exchange skipped: localStorage had no verifier", "error")
+    st.query_params.clear()
 
 with st.sidebar:
     st.header("Setup")
