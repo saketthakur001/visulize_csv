@@ -392,6 +392,19 @@ with st.sidebar:
         )
         st.caption("New accounts get free credits, and free-tier models cost nothing either way.")
 
+        with st.expander("Or paste an API key instead"):
+            st.caption("If the login button doesn't work (some networks block OAuth-style redirect links), grab a free key from [openrouter.ai/keys](https://openrouter.ai/keys) and paste it here.")
+            manual_key = st.text_input("OpenRouter API key", type="password", key="manual_key_input", label_visibility="collapsed", placeholder="sk-or-...")
+            if st.button("Use this key", use_container_width=True) and manual_key:
+                st.session_state.api_key = manual_key
+                check_connection.clear()
+                components.html(
+                    f"<script>window.localStorage.setItem('or_api_key', {json.dumps(manual_key)});</script>",
+                    height=0,
+                )
+                log("API key set manually", "success")
+                st.rerun()
+
     api_key = st.session_state.api_key
     free_models = get_free_models()
     model_choices = free_models + ["openai/gpt-4o-mini", "anthropic/claude-3.5-haiku"]
