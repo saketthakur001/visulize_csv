@@ -277,12 +277,15 @@ if "tried_restore" not in st.session_state:
 
 if not st.session_state.api_key and not st.session_state.tried_restore and "code" not in params:
     saved_key = st_javascript("localStorage.getItem('or_api_key')", key="restore_key")
-    if saved_key == 0:
-        st.stop()  # st_javascript sentinel while it waits for the browser round-trip
-    st.session_state.tried_restore = True
-    if saved_key:
-        st.session_state.api_key = saved_key
-        log("Restored saved login from this browser", "success")
+    # saved_key == 0 is st_javascript's sentinel while it waits for the browser round-trip
+    # (it triggers its own rerun once the real value arrives). Never st.stop() here — if
+    # that round-trip stalls for any reason, blocking would blank the entire page (no
+    # sidebar, no content) instead of just leaving the login unrestored for this pass.
+    if saved_key != 0:
+        st.session_state.tried_restore = True
+        if saved_key:
+            st.session_state.api_key = saved_key
+            log("Restored saved login from this browser", "success")
 
 # The redirect to openrouter.ai and back is a full cross-origin page load, which kills
 # the WebSocket and starts a brand-new Streamlit session — session_state from before the
@@ -294,13 +297,23 @@ if not st.session_state.api_key and not st.session_state.tried_restore and "code
 # approach silently failed: Streamlit's component iframe sandbox blocks a script-driven
 # top-level navigation without a real user click).
 if not st.session_state.api_key and "code" in params:
+    if "verifier_wait_attempts" not in st.session_state:
+        st.session_state.verifier_wait_attempts = 0
+
     log("Received OAuth redirect with code, fetching verifier from localStorage")
     verifier = st_javascript("localStorage.getItem('or_pkce_verifier')", key="fetch_verifier")
-    if verifier == 0:
+    if verifier == 0 and st.session_state.verifier_wait_attempts < 20:
         # st_javascript's sentinel while it waits for the browser round-trip; the
-        # component will trigger a rerun once the real value comes back.
+        # component will trigger a rerun once the real value comes back. Capped so a
+        # stalled round-trip degrades to a clear error instead of blanking the page
+        # forever.
+        st.session_state.verifier_wait_attempts += 1
         st.info("Finishing login...")
         st.stop()
+    elif verifier == 0:
+        st.error("Login is taking unexpectedly long — please refresh and try logging in again.")
+        log("Key exchange abandoned: verifier fetch never resolved", "error")
+        st.query_params.clear()
     elif verifier:
         try:
             st.session_state.api_key = exchange_code_for_key(params["code"], verifier)
