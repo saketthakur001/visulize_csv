@@ -24,72 +24,91 @@ st.markdown(
     """
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #F1EFF9;
+            --bg: #EDF2F1;
+            --grid-line: rgba(22, 35, 46, 0.055);
             --surface: #FFFFFF;
-            --border: #E1DEF2;
-            --text: #1C1A2E;
-            --text-muted: #635F7A;
-            --text-faint: #9691AD;
-            --accent: #4F46E5;
-            --accent-hover: #4338CA;
-            --accent-soft: #EDEBFC;
-            --accent-soft-border: #D6D2F7;
-            --success-bg: #E7F8EE; --success-text: #157347;
-            --error-bg: #FDECEC; --error-text: #B42318;
+            --border: #D6DEDB;
+            --ink: #14211D;
+            --ink-muted: #55665F;
+            --ink-faint: #8A9992;
+            --accent: #D9720F;
+            --accent-hover: #B85F09;
+            --accent-soft: #FBE6CE;
+            --accent-soft-border: #F0C58C;
+            --ok: #2F8F5B;
+            --err: #C4472B;
 
-            --side-bg: #17152B;
-            --side-bg-raised: #1F1D38;
-            --side-border: #2E2B4C;
-            --side-text: #E7E5F5;
-            --side-muted: #8D89AC;
+            --side-bg: #12211E;
+            --side-bg-raised: #1B302B;
+            --side-border: #2C453D;
+            --side-text: #E4ECE8;
+            --side-muted: #86988F;
         }
 
         html, body, [class*="css"] {
-            font-family: 'Inter', -apple-system, sans-serif;
-            color: var(--text);
+            font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+            color: var(--ink);
         }
-        .stApp { background: var(--bg); }
-
-        .block-container { padding-top: 2.5rem; padding-bottom: 3rem; max-width: 980px; }
-
-        /* Header */
-        .app-header { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.15rem; }
-        .app-mark {
-            width: 28px; height: 28px; border-radius: 8px;
-            background: linear-gradient(135deg, #6D28D9 0%, #4338CA 100%);
-            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-            box-shadow: 0 2px 6px rgba(67, 56, 202, 0.35);
+        .stApp {
+            background-color: var(--bg);
+            background-image:
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 28px 28px;
         }
-        .app-mark svg { width: 14px; height: 14px; }
-        .app-title { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
-        .app-subtitle { color: var(--text-muted); font-size: 0.875rem; margin: 0.3rem 0 1.75rem 36px; }
 
-        /* Eyebrow / step labels */
+        .block-container { padding-top: 2rem; padding-bottom: 3rem; max-width: 980px; }
+
+        code, .stCodeBlock, .stCode, pre { font-family: 'JetBrains Mono', monospace !important; }
+
+        /* Window chrome — the app reads as an open editor/terminal session, not a form */
+        .win-chrome {
+            display: flex; align-items: center; gap: 0.5rem;
+            background: var(--ink); border-radius: 8px 8px 0 0;
+            padding: 0.55rem 0.85rem; margin-bottom: 0;
+        }
+        .win-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+        .win-dot.r { background: #E5544B; } .win-dot.y { background: #E5B93F; } .win-dot.g { background: #3FA66A; }
+        .win-file {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--side-muted);
+            margin-left: 0.4rem;
+        }
+        .win-body {
+            background: var(--surface); border: 1px solid var(--ink);
+            border-top: none; border-radius: 0 0 8px 8px;
+            padding: 1.1rem 1.3rem 1.3rem;
+            box-shadow: 0 3px 0 rgba(20, 33, 29, 0.06);
+            margin-bottom: 1.6rem;
+        }
+        .app-title {
+            font-family: 'JetBrains Mono', monospace; font-size: 1.15rem; font-weight: 700;
+            letter-spacing: -0.01em; color: var(--ink);
+        }
+        .app-subtitle { color: var(--ink-muted); font-size: 0.875rem; margin: 0.35rem 0 0; }
+
+        /* Eyebrow / step labels — rendered as a shell prompt */
         .eyebrow {
-            display: flex; align-items: center; gap: 0.55rem;
-            font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-            color: var(--text-muted); margin-bottom: 0.85rem;
+            display: flex; align-items: baseline; gap: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem; font-weight: 600;
+            color: var(--ink-muted); margin-bottom: 0.85rem;
         }
-        .eyebrow .step-num {
-            width: 18px; height: 18px; border-radius: 5px;
-            background: var(--accent-soft); border: 1px solid var(--accent-soft-border);
-            display: inline-flex; align-items: center; justify-content: center;
-            font-size: 0.65rem; font-weight: 700; color: var(--accent); text-transform: none; letter-spacing: 0;
-        }
+        .eyebrow .prompt { color: var(--accent); font-weight: 700; }
+        .eyebrow .step-label { color: var(--ink); text-transform: none; letter-spacing: 0; }
 
-        /* Card-style containers — flat, bordered, no shadow */
+        /* Card-style containers */
         div[data-testid="stVerticalBlockBorderWrapper"] {
             background: var(--surface);
             border: 1px solid var(--border) !important;
-            border-radius: 10px !important;
-            box-shadow: 0 1px 2px rgba(28, 26, 46, 0.04) !important;
+            border-radius: 6px !important;
+            box-shadow: none !important;
         }
         div[data-testid="stVerticalBlockBorderWrapper"] > div { padding: 1.1rem 1.2rem; }
 
-        /* Sidebar — dark, so the app reads as a real product shell, not a form */
+        /* Sidebar — dark ink, matches the window chrome */
         section[data-testid="stSidebar"] {
             background: var(--side-bg);
             border-right: 1px solid var(--side-border);
@@ -101,54 +120,63 @@ st.markdown(
         section[data-testid="stSidebar"] .stButton > button {
             background: var(--side-bg-raised); border: 1px solid var(--side-border); color: var(--side-text);
         }
-        section[data-testid="stSidebar"] .stButton > button:hover { border-color: var(--side-muted); background: #262445; }
+        section[data-testid="stSidebar"] .stButton > button:hover { border-color: var(--side-muted); background: #24382F; }
         section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
             background: var(--side-bg-raised) !important; border-color: var(--side-border) !important; color: var(--side-text) !important;
         }
         section[data-testid="stSidebar"] div[data-baseweb="select"] svg { fill: var(--side-muted) !important; }
 
-        h3 { font-size: 0.95rem !important; font-weight: 600 !important; color: var(--text) !important; letter-spacing: -0.01em; }
+        h3 {
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 0.9rem !important; font-weight: 600 !important; color: var(--ink) !important; letter-spacing: 0;
+        }
 
         /* Buttons */
         .stButton > button {
-            border-radius: 7px;
+            border-radius: 5px;
             font-weight: 500;
             font-size: 0.875rem;
             border: 1px solid var(--border);
-            color: var(--text);
+            color: var(--ink);
             transition: none;
         }
-        .stButton > button:hover { border-color: var(--text-faint); background: var(--accent-soft); }
+        .stButton > button:hover { border-color: var(--accent); background: var(--accent-soft); }
         .stButton > button[kind="primary"] {
-            background: linear-gradient(135deg, #6366F1 0%, #4338CA 100%);
+            background: var(--accent);
             border: 1px solid var(--accent-hover);
             color: #FFFFFF;
         }
-        .stButton > button[kind="primary"]:hover { filter: brightness(1.06); }
-        .stButton > button[kind="primary"]:disabled { background: #E1DEF2; border-color: #E1DEF2; color: var(--text-faint); filter: none; }
+        .stButton > button[kind="primary"]:hover { background: var(--accent-hover); }
+        .stButton > button[kind="primary"]:disabled { background: #DDE6E2; border-color: #DDE6E2; color: var(--ink-faint); }
 
         /* Status pill */
         .status-pill {
             display: inline-flex; align-items: center; gap: 0.4rem;
-            padding: 0.25rem 0.6rem; border-radius: 6px;
-            font-weight: 500; font-size: 0.8rem;
+            padding: 0.25rem 0.6rem; border-radius: 5px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500; font-size: 0.78rem;
         }
-        .status-pill.connected { background: rgba(74, 222, 128, 0.14); color: #4ADE80; }
+        .status-pill.connected { background: rgba(63, 166, 106, 0.16); color: #4FC886; }
         .status-pill.disconnected { background: var(--side-bg-raised); color: var(--side-muted); border: 1px solid var(--side-border); }
         .status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
-        .status-dot.connected { background: #4ADE80; }
+        .status-dot.connected { background: #4FC886; box-shadow: 0 0 5px rgba(79, 200, 134, 0.7); }
         .status-dot.disconnected { background: var(--side-muted); }
 
         /* Inputs */
         .stTextInput > div > div > input, .stSelectbox > div > div {
-            border-radius: 7px !important;
+            border-radius: 5px !important;
             border-color: var(--border) !important;
         }
         .stTextInput > div > div > input:focus { border-color: var(--accent) !important; box-shadow: 0 0 0 1px var(--accent) !important; }
+        div[data-testid="stTextInput"] input { font-family: 'JetBrains Mono', monospace; }
 
-        section.main > div > div > hr { border-top: 1px solid var(--border); margin: 2rem 0; }
+        /* Slider — recolor from Streamlit's default indigo to the accent */
+        div[data-testid="stSlider"] div[role="slider"] { background-color: var(--accent) !important; border-color: var(--accent) !important; }
+        div[data-testid="stSlider"] div[data-baseweb="slider"] > div > div:nth-child(2) { background: var(--accent) !important; }
 
-        .app-footer { color: var(--text-faint); font-size: 0.8rem; text-align: center; margin-top: 0.5rem; }
+        section.main > div > div > hr { border-top: 1px dashed var(--border); margin: 2rem 0; }
+
+        .app-footer { color: var(--ink-faint); font-size: 0.8rem; text-align: center; margin-top: 0.5rem; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -156,17 +184,14 @@ st.markdown(
 
 st.markdown(
     """
-    <div class="app-header">
-        <span class="app-mark">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="3" y="12" width="4" height="9" rx="1" fill="white"/>
-                <rect x="10" y="7" width="4" height="14" rx="1" fill="white"/>
-                <rect x="17" y="3" width="4" height="18" rx="1" fill="white"/>
-            </svg>
-        </span>
-        <span class="app-title">CSV Analyst</span>
+    <div class="win-chrome">
+        <span class="win-dot r"></span><span class="win-dot y"></span><span class="win-dot g"></span>
+        <span class="win-file">~/session · csv_analyst.py</span>
     </div>
-    <div class="app-subtitle">Upload a CSV, ask a question in plain English, get back working pandas code and a chart.</div>
+    <div class="win-body">
+        <div class="app-title">df = pd.read_csv(...)  →  agent</div>
+        <div class="app-subtitle">Upload a CSV, ask a question in plain English, get back working pandas code and a chart.</div>
+    </div>
     """,
     unsafe_allow_html=True,
 )
@@ -178,19 +203,19 @@ def style_chart(fig, ax):
     ax.set_facecolor("#FFFFFF")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_color("#E4E4E7")
-    ax.spines["bottom"].set_color("#E4E4E7")
-    ax.tick_params(colors="#71717A", labelsize=9)
-    ax.grid(True, axis="y", color="#F4F4F5", linewidth=0.8)
+    ax.spines["left"].set_color("#D6DEDB")
+    ax.spines["bottom"].set_color("#D6DEDB")
+    ax.tick_params(colors="#55665F", labelsize=9)
+    ax.grid(True, axis="y", color="#EDF2F1", linewidth=0.8)
     ax.set_axisbelow(True)
-    ax.title.set_color("#18181B")
+    ax.title.set_color("#14211D")
     ax.title.set_fontweight("medium")
-    ax.xaxis.label.set_color("#3F3F46")
-    ax.yaxis.label.set_color("#3F3F46")
+    ax.xaxis.label.set_color("#14211D")
+    ax.yaxis.label.set_color("#14211D")
     return fig, ax
 
 
-ACCENT_COLORS = ["#4F46E5", "#0D9488", "#D97706", "#E11D48", "#7C3AED", "#0891B2"]
+ACCENT_COLORS = ["#D9720F", "#2E6E5C", "#3B5266", "#B85F09", "#7A4A2B", "#5C7A6E"]
 plt.rcParams["axes.prop_cycle"] = plt.cycler(color=ACCENT_COLORS)
 plt.rcParams["font.family"] = "sans-serif"
 
@@ -333,7 +358,7 @@ if not st.session_state.api_key and "code" in params:
     st.query_params.clear()
 
 with st.sidebar:
-    st.markdown('<div class="eyebrow">Account</div>', unsafe_allow_html=True)
+    st.markdown('<div class="eyebrow"><span class="prompt">$</span><span class="step-label">account</span></div>', unsafe_allow_html=True)
 
     if st.session_state.api_key:
         connected, info = check_connection(st.session_state.api_key)
@@ -392,7 +417,7 @@ with st.sidebar:
         st.markdown(
             f'''<a href="{auth_url}" target="_blank" style="
                 display:block; text-align:center; padding:0.5rem 1rem; margin-top:0.6rem;
-                background:linear-gradient(135deg, #6366F1 0%, #4338CA 100%); color:white;
+                background:var(--accent); color:white;
                 border-radius:7px; font-size:0.875rem;
                 text-decoration:none; font-weight:500;">Continue with OpenRouter</a>''',
             unsafe_allow_html=True,
@@ -431,7 +456,7 @@ with st.sidebar:
     st.markdown("---")
     st.caption("Streamlit + OpenRouter")
 
-st.markdown('<div class="eyebrow"><span class="step-num">1</span>Upload data</div>', unsafe_allow_html=True)
+st.markdown('<div class="eyebrow"><span class="prompt">$</span><span class="step-label">01 · upload data</span></div>', unsafe_allow_html=True)
 with st.container(border=True):
     col1, col2 = st.columns([3, 1])
     with col1:
@@ -454,14 +479,14 @@ if uploaded or st.session_state.use_demo:
     else:
         df = pd.read_csv("sample_data/sales.csv")
         st.caption("Using demo dataset: sample sales data by region, product, and rep. Upload your own CSV to replace it.")
-    st.markdown('<div style="height:1.5rem"></div><div class="eyebrow"><span class="step-num">2</span>Preview</div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:1.5rem"></div><div class="eyebrow"><span class="prompt">$</span><span class="step-label">02 · preview</span></div>', unsafe_allow_html=True)
     with st.container(border=True):
         st.dataframe(df.head(20), use_container_width=True)
 
         with st.expander("Columns & dtypes"):
             st.write(df.dtypes.astype(str))
 
-    st.markdown('<div style="height:1.5rem"></div><div class="eyebrow"><span class="step-num">3</span>Ask a question</div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:1.5rem"></div><div class="eyebrow"><span class="prompt">$</span><span class="step-label">03 · ask a question</span></div>', unsafe_allow_html=True)
     with st.container(border=True):
         question = st.text_input(
             "Question",
@@ -503,7 +528,7 @@ Write Python code that answers the user's question. Rules:
 
         log(f"Analyze requested — model={model}, question={question!r}, max_retries={max_retries}")
 
-        st.markdown('<div style="height:1.5rem"></div><div class="eyebrow"><span class="step-num">4</span>Agent trace</div>', unsafe_allow_html=True)
+        st.markdown('<div style="height:1.5rem"></div><div class="eyebrow"><span class="prompt">$</span><span class="step-label">04 · agent trace</span></div>', unsafe_allow_html=True)
 
         final_code = None
         succeeded = False
