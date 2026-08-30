@@ -32,9 +32,9 @@ tried and confirmed broken through actual testing, not guesswork.
   never survives the round trip. Don't rely on this.
 
 - **`st.link_button` for the login link.**
-  It renders `target="_blank"` (opens a new tab). A new tab is a *separate*
-  Streamlit session from the start, so anything session-based is doomed
-  twice over. Use a plain `<a target="_self">` styled as a button instead.
+  It renders `target="_blank"` via a JS-driven `window.open`, not a real
+  `<a>` click — see the iframe-sandbox point below for why that matters, on
+  top of it also starting a separate Streamlit session.
 
 - **Navigating the top-level page from inside a `components.html` iframe**
   (e.g. `window.parent.location.replace(...)` run automatically on load).
@@ -42,6 +42,25 @@ tried and confirmed broken through actual testing, not guesswork.
   navigation unless it's tied to a real user click (user activation). This
   fails *silently* — no exception, no console error visible to the app, the
   page just sits there (this produced the "Finishing login..." stuck state).
+
+- **`target="_self"` or `target="_top"` on the login `<a>`, when deployed on
+  Streamlit Cloud.** Streamlit Cloud serves the app inside its *own*
+  sandboxed wrapper iframe (`src=".../~/+/"`, `sandbox="allow-forms
+  allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin
+  allow-scripts allow-downloads"` — no `allow-top-navigation`). This is
+  **outside our app's HTML entirely** — we don't control it and can't add
+  the missing sandbox flag. Both `_self` and `_top` try to navigate that
+  sandboxed frame (or its parent) and get silently blocked: no exception, no
+  network request, the button just does nothing. Chrome does log it, but
+  only to devtools console, not anywhere our app's Python logs can see:
+  `Unsafe attempt to initiate navigation ... sandboxed, but the flag of
+  'allow-top-navigation' ... is not set.`
+  This only reproduces on the **deployed** app — `localhost` isn't iframed,
+  so `_self`/`_top` work fine there, which is exactly why it can look like a
+  network/OAuth-server problem instead of a client-side sandbox block. If
+  you're debugging a dead login button that works locally but not deployed,
+  check for this before suspecting the network — open devtools console on
+  the deployed site and click the button; the sandbox error is unmistakable.
 
 ## What DOES work
 
@@ -58,9 +77,14 @@ tried and confirmed broken through actual testing, not guesswork.
   waits for the JS round trip; `st.stop()` on that value and let the
   component's internal rerun deliver the real value next pass.
 
-- **Same-tab navigation for the login link** (`target="_self"`), so the
-  redirect-back page shares origin/storage context cleanly with the page
-  that saved the verifier.
+- **`target="_blank"` on the login `<a>`.** Counterintuitively this is now
+  the *correct* choice, specifically because it escapes Streamlit Cloud's
+  wrapper-iframe sandbox: the sandbox grants `allow-popups-to-escape-sandbox`
+  even though it denies `allow-top-navigation`. The new tab is same-origin
+  as the iframe (both `visulize-csv.streamlit.app`), so `localStorage` is
+  shared and the verifier round-trip still works. Do not "simplify" this
+  back to `_self`/`_top` — see the sandbox point above for why that regresses
+  the deployed login button while looking fine in local testing.
 
 ## Persisting the login across sessions
 
@@ -145,3 +169,10 @@ See `app.py`:
    openrouter.ai/keys directly to confirm the key exists on their end.
 4. Deployed (not localhost)? `APP_URL` must exactly match where the app is
    actually served — set it in `.streamlit/secrets.toml`.
+5. Button does *nothing* when clicked (no page change, no error, no new
+   tab) and only on the deployed app, not localhost? That's the Streamlit
+   Cloud wrapper-iframe sandbox blocking top-level navigation — see "Things
+   that DON'T work" above. Confirm via devtools console (look for `Unsafe
+   attempt to initiate navigation ... sandboxed`), not via server logs —
+   this never reaches our backend. Fix is `target="_blank"` on the login
+   `<a>`, not a `_self`/`_top` variant.
