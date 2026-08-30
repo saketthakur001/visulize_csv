@@ -388,6 +388,13 @@ with st.sidebar:
         index=0,
         help="Models ending in :free cost nothing to use. This list is fetched live from OpenRouter.",
     )
+    max_retries = st.slider(
+        "Self-repair attempts",
+        min_value=1,
+        max_value=4,
+        value=3,
+        help="If the model's generated code errors out, feed the error back and let it try again, up to this many attempts.",
+    )
     st.markdown("---")
     st.caption("Streamlit + OpenRouter")
 
@@ -452,58 +459,95 @@ Write Python code that answers the user's question. Rules:
 - Keep code short and correct. Do not import pandas or matplotlib, they're already available as pd, plt, st.
 """
 
-        log(f"Analyze requested — model={model}, question={question!r}")
-        with st.spinner("Agent is writing code..."):
-            try:
-                resp = client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": question},
-                    ],
-                    temperature=0,
-                )
-                raw = resp.choices[0].message.content
-                log("LLM call succeeded", "success")
-            except Exception as e:
-                st.error(f"LLM call failed: {e}")
-                log(f"LLM call failed: {e}", "error")
-                st.stop()
+        def extract_code(raw_text):
+            match = re.search(r"```(?:python)?\s*(.*?)```", raw_text, re.DOTALL)
+            return match.group(1).strip() if match else raw_text.strip()
 
-        match = re.search(r"```(?:python)?\s*(.*?)```", raw, re.DOTALL)
-        code = match.group(1).strip() if match else raw.strip()
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": question},
+        ]
 
-        st.markdown('<div style="height:1.5rem"></div><div class="eyebrow"><span class="step-num">4</span>Result</div>', unsafe_allow_html=True)
-        with st.container(border=True):
-            st.markdown("**Generated code**")
-            st.code(code, language="python")
+        log(f"Analyze requested — model={model}, question={question!r}, max_retries={max_retries}")
 
-            st.markdown("**Output**")
-            safe_globals = {"df": df.copy(), "pd": pd, "plt": plt, "st": st, "style_chart": style_chart}
-            stdout = io.StringIO()
-            try:
-                with contextlib.redirect_stdout(stdout):
-                    exec(code, safe_globals)
-                if stdout.getvalue():
-                    st.text(stdout.getvalue())
-                if "result" in safe_globals:
-                    result = safe_globals["result"]
-                    if isinstance(result, (pd.DataFrame, pd.Series)):
-                        st.dataframe(result, use_container_width=True)
+        st.markdown('<div style="height:1.5rem"></div><div class="eyebrow"><span class="step-num">4</span>Agent trace</div>', unsafe_allow_html=True)
+
+        final_code = None
+        succeeded = False
+
+        with st.status("Starting agent...", expanded=True) as status:
+            st.caption(f"Dataset: {df.shape[0]} rows × {df.shape[1]} columns · Model: `{model}`")
+
+            for attempt in range(1, max_retries + 1):
+                status.update(label=f"Calling {model} to write pandas code — attempt {attempt}/{max_retries}")
+                try:
+                    resp = client.chat.completions.create(model=model, messages=messages, temperature=0)
+                    raw = resp.choices[0].message.content
+                except Exception as e:
+                    status.update(label="LLM call failed", state="error")
+                    st.error(f"LLM call failed: {e}")
+                    log(f"LLM call failed: {e}", "error")
+                    break
+
+                code = extract_code(raw)
+                final_code = code
+                log(f"LLM call succeeded (attempt {attempt})", "success")
+
+                st.markdown(f"**Attempt {attempt} — generated code**")
+                st.code(code, language="python")
+
+                status.update(label=f"Executing generated code — attempt {attempt}/{max_retries}")
+                safe_globals = {"df": df.copy(), "pd": pd, "plt": plt, "st": st, "style_chart": style_chart}
+                stdout = io.StringIO()
+                try:
+                    with contextlib.redirect_stdout(stdout):
+                        exec(code, safe_globals)
+                    if stdout.getvalue():
+                        st.text(stdout.getvalue())
+                    if "result" in safe_globals:
+                        result = safe_globals["result"]
+                        if isinstance(result, (pd.DataFrame, pd.Series)):
+                            st.dataframe(result, use_container_width=True)
+                        else:
+                            st.write(result)
+                    st.success(f"Execution succeeded on attempt {attempt}")
+                    status.update(
+                        label=f"Done — succeeded on attempt {attempt}/{max_retries}",
+                        state="complete",
+                    )
+                    log(f"Generated code executed successfully (attempt {attempt})", "success")
+                    succeeded = True
+                    break
+                except Exception as e:
+                    st.error(f"Execution failed: {e}")
+                    log(f"Execution error (attempt {attempt}): {e}", "error")
+                    if attempt < max_retries:
+                        st.info("Sending the error back to the model so it can fix its own code...")
+                        messages.append({"role": "assistant", "content": raw})
+                        messages.append(
+                            {
+                                "role": "user",
+                                "content": f"That code raised this error when run:\n{e}\n\n"
+                                "Fix it and return the corrected code as a single python code block.",
+                            }
+                        )
                     else:
-                        st.write(result)
-                log("Generated code executed successfully", "success")
-            except Exception as e:
-                st.error(f"Execution error: {e}")
-                log(f"Execution error: {e}", "error")
+                        status.update(
+                            label=f"Failed — gave up after {max_retries} attempts",
+                            state="error",
+                        )
 
-        st.session_state.history.append({"question": question, "code": code})
+        if final_code:
+            st.session_state.history.append(
+                {"question": question, "code": final_code, "succeeded": succeeded}
+            )
 
     if st.session_state.history:
         st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
         with st.expander("History"):
             for i, h in enumerate(reversed(st.session_state.history), 1):
-                st.markdown(f"**{i}. {h['question']}**")
+                mark = "✓" if h.get("succeeded") else "✗"
+                st.markdown(f"**{i}. {mark} {h['question']}**")
                 st.code(h["code"], language="python")
 else:
     st.markdown('<div style="height:1.5rem"></div>', unsafe_allow_html=True)
